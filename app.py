@@ -33,3 +33,43 @@ def handle_chat():
 # Iniciar el hilo del chat
 chat_thread = threading.Thread(target=handle_chat)
 chat_thread.start()
+
+# Vista para el registro de usuarios
+@app.route("/register", methods=["GET", "POST"])
+def register():
+    if request.method == "POST":
+        username = request.form["username"]
+        password = request.form["password"]
+
+        # Verificar si el usuario ya existe
+        if users_collection.find_one({"username": username}):
+            return render_template("register.html", error="El usuario ya existe")
+
+        # Hash de la contraseña antes de almacenarla
+        hashed_password = generate_password_hash(password)
+
+        # Almacenar el usuario en la base de datos
+        users_collection.insert_one({"username": username, "password": hashed_password})
+
+        return redirect(url_for("login"))
+
+    return render_template("register.html")
+
+# Vista para el inicio de sesión
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        username = request.form["username"]
+        password = request.form["password"]
+
+        # Buscar el usuario en la base de datos
+        user = users_collection.find_one({"username": username})
+
+        # Verificar si el usuario existe y la contraseña es correcta
+        if user and check_password_hash(user["password"], password):
+            session["username"] = username
+            return redirect(url_for("index"))
+        else:
+            return render_template("login.html", error="Nombre de usuario o contraseña incorrectos")
+
+    return render_template("login.html")
