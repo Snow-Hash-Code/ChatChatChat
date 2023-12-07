@@ -18,6 +18,26 @@ messages_collection = db["messages"]
 chat_messages = []
 chat_lock = threading.Lock()
 
+# Vista principal para mostrar el chat
+@app.route("/")
+def index():
+    if "username" in session:
+        username = session["username"]
+        
+        # Recuperar mensajes de la base de datos
+        messages = list(messages_collection.find({}, {"_id": 0}))
+
+        return render_template("chat.html", username=username, messages=messages)
+    
+    return redirect(url_for("login"))
+
+
+# Nueva ruta para obtener mensajes
+@app.route("/get_messages")
+def get_messages():
+    messages = list(messages_collection.find({}, {"_id": 0}))
+    return {"messages": messages}
+
 # Función para manejar la lógica del chat en un hilo
 def handle_chat():
     global chat_messages
@@ -73,3 +93,27 @@ def login():
             return render_template("login.html", error="Nombre de usuario o contraseña incorrectos")
 
     return render_template("login.html")
+
+# Vista para cerrar sesión
+@app.route('/logout')
+def logout():
+    session.pop('username', None)
+    return redirect(url_for('login'))
+
+# Vista para enviar mensajes al chat
+@app.route("/send_message", methods=["POST"])
+def send_message():
+    if "username" in session:
+        username = session["username"]
+        message_text = request.form["message"]
+        message = {"username": username, "message": message_text}
+        
+        with chat_lock:
+            chat_messages.append(message)
+
+        return redirect(url_for("index"))
+
+    return redirect(url_for("login"))
+
+if __name__ == "__main__":
+    app.run(debug=True)
